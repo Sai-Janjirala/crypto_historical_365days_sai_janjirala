@@ -1,0 +1,2 @@
+# services/ — Business logic (empty for now)
+# Later: reusable logic that controllers call (keeps controllers thin).

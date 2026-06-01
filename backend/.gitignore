@@ -1,0 +1,5 @@
+# Dependencies installed by npm (can be recreated with npm install)
+node_modules/
+
+# Environment file — contains secrets; do not upload to GitHub
+.env

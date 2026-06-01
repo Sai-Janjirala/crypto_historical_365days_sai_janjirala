@@ -1,0 +1,17 @@
+# ============================================================
+# Root .gitignore — applies to the whole project (backend + frontend)
+# ============================================================
+
+# npm dependencies (reinstall with: cd backend && npm install)
+node_modules/
+
+# Secrets — never upload to GitHub (use .env.example as a template)
+.env
+
+# OS junk files
+.DS_Store
+Thumbs.db
+
+# Editor folders (optional — keeps repo clean)
+.vscode/
+.idea/

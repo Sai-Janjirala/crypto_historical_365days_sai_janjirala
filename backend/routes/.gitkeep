@@ -1,0 +1,2 @@
+# routes/ — API route definitions (empty for now)
+# Later: map URLs like GET /api/users to controller functions.

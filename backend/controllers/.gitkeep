@@ -1,0 +1,2 @@
+# controllers/ — Request/response handling (empty for now)
+# Later: functions that receive req, res and call services/models.
