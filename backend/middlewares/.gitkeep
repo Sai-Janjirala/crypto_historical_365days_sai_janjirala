@@ -1,0 +1,2 @@
+# middlewares/ — Auth, error, logging middleware (empty for now)
+# Later: functions that run between the request and the controller.
