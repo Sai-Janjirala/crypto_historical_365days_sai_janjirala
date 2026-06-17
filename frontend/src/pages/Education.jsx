@@ -107,7 +107,7 @@ export default function Education() {
           <input
             type="text"
             className="form-input"
-            style={{ paddingLeft: '32px', width: '100%', fontSize: '12px' }}
+            style={{ paddingLeft: '32px', paddingRight: searchQuery ? '32px' : '10px', width: '100%', fontSize: '12px' }}
             placeholder="Search definitions..."
             value={searchQuery}
             onChange={(e) => {
@@ -115,6 +115,31 @@ export default function Education() {
               setOpenIndex(null);
             }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setOpenIndex(null);
+              }}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                padding: '2px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
