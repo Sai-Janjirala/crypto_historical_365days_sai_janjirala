@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layouts/Layout';
 
+import { AuthProvider } from './context/AuthContext';
+
 // Temporary page placeholders (will be built out in future PRs)
 function HomePlaceholder() {
   return (
@@ -44,21 +46,23 @@ function PagePlaceholder({ title }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePlaceholder />} />
-          <Route path="coins" element={<PagePlaceholder title="Coins Directory" />} />
-          <Route path="compare" element={<PagePlaceholder title="Compare Coins" />} />
-          <Route path="heatmap" element={<PagePlaceholder title="Market Heatmap" />} />
-          <Route path="stats" element={<PagePlaceholder title="Global Statistics" />} />
-          <Route path="analytics" element={<PagePlaceholder title="Analytics Hub" />} />
-          <Route path="portfolio" element={<PagePlaceholder title="Portfolio Simulator" />} />
-          <Route path="admin" element={<PagePlaceholder title="Admin Panel" />} />
-          <Route path="settings" element={<PagePlaceholder title="Settings" />} />
-          <Route path="*" element={<PagePlaceholder title="404 Not Found" />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePlaceholder />} />
+            <Route path="coins" element={<PagePlaceholder title="Coins Directory" />} />
+            <Route path="compare" element={<PagePlaceholder title="Compare Coins" />} />
+            <Route path="heatmap" element={<PagePlaceholder title="Market Heatmap" />} />
+            <Route path="stats" element={<PagePlaceholder title="Global Statistics" />} />
+            <Route path="analytics" element={<PagePlaceholder title="Analytics Hub" />} />
+            <Route path="portfolio" element={<PagePlaceholder title="Portfolio Simulator" />} />
+            <Route path="admin" element={<PagePlaceholder title="Admin Panel" />} />
+            <Route path="settings" element={<PagePlaceholder title="Settings" />} />
+            <Route path="*" element={<PagePlaceholder title="404 Not Found" />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
