@@ -6,6 +6,21 @@ const coinService = {
     return response.data;
   },
 
+  async searchCoins(q) {
+    const response = await api.get('/search/coins', { params: { q } });
+    return response.data;
+  },
+
+  async sortByPreset(preset, params = {}) {
+    const response = await api.get(`/coins/sort/${preset}`, { params });
+    return response.data;
+  },
+
+  async filterPreset(type, params = {}) {
+    const response = await api.get(`/coins/filter/${type}`, { params });
+    return response.data;
+  },
+
   async getCoinById(id) {
     const response = await api.get(`/coins/${id}`);
     return response.data;
