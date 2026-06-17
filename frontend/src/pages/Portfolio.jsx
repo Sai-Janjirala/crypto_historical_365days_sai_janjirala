@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { Briefcase, Plus, Trash2, AlertTriangle, CheckCircle, Percent, DollarSign, Play } from 'lucide-react';
+import { Briefcase, Plus, Trash2, AlertTriangle, CheckCircle, Percent, DollarSign, Play, Loader2, Sparkles } from 'lucide-react';
 
 export default function Portfolio() {
   const [allCoins, setAllCoins] = useState([]);
@@ -9,6 +9,11 @@ export default function Portfolio() {
   const [initialInvestment, setInitialInvestment] = useState(10000);
   const [loadingCoins, setLoadingCoins] = useState(true);
   const [error, setError] = useState('');
+
+  // Simulation states
+  const [simulating, setSimulating] = useState(false);
+  const [simulated, setSimulated] = useState(false);
+  const [simulationResult, setSimulationResult] = useState(null);
 
   // Fetch all coins to populate the selection dropdown
   useEffect(() => {
@@ -73,7 +78,22 @@ export default function Portfolio() {
   const totalWeight = allocations.reduce((sum, a) => sum + a.weight, 0);
   const isWeightValid = totalWeight === 100;
 
-  const handleSimulate = (e) => {
+  const calculateVolatility = (timeline) => {
+    const dailyChanges = [];
+    for (let i = 1; i < timeline.length; i++) {
+      const prev = timeline[i - 1].value;
+      const curr = timeline[i].value;
+      if (prev > 0) {
+        dailyChanges.push(((curr - prev) / prev) * 100);
+      }
+    }
+    if (dailyChanges.length === 0) return 0;
+    const mean = dailyChanges.reduce((sum, val) => sum + val, 0) / dailyChanges.length;
+    const variance = dailyChanges.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / dailyChanges.length;
+    return Math.sqrt(variance);
+  };
+
+  const handleSimulate = async (e) => {
     e.preventDefault();
     if (allocations.length === 0) {
       setError('Please add at least one asset to simulate.');
@@ -84,7 +104,108 @@ export default function Portfolio() {
       return;
     }
     setError('');
-    alert('Base UI configured. Simulation logic will be run in the next commit!');
+    setSimulating(true);
+    setSimulated(false);
+    setSimulationResult(null);
+
+    try {
+      // Fetch history for each selected coin in parallel
+      const historyPromises = allocations.map(a => coinService.getHistory(a.coinId));
+      const historyResponses = await Promise.all(historyPromises);
+
+      const coinHistories = historyResponses.map((res, index) => {
+        if (!res.success || !Array.isArray(res.data)) {
+          throw new Error(`Failed to load historical data for ${allocations[index].name}.`);
+        }
+        return {
+          coinId: allocations[index].coinId,
+          weight: allocations[index].weight,
+          name: allocations[index].name,
+          history: [...res.data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        };
+      });
+
+      // Map prices by date and coin
+      const priceByDateAndCoin = {};
+      const allDatesSet = new Set();
+      const getLocalDateString = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
+
+      coinHistories.forEach(ch => {
+        ch.history.forEach(item => {
+          const dStr = getLocalDateString(item.timestamp);
+          if (!priceByDateAndCoin[dStr]) {
+            priceByDateAndCoin[dStr] = {};
+          }
+          priceByDateAndCoin[dStr][ch.coinId] = item.price;
+          allDatesSet.add(dStr);
+        });
+      });
+
+      // Filter dates that have prices for ALL selected coins to align timeline
+      const sortedDates = Array.from(allDatesSet).sort().filter(dStr => {
+        return coinHistories.every(ch => priceByDateAndCoin[dStr][ch.coinId] !== undefined);
+      });
+
+      if (sortedDates.length === 0) {
+        throw new Error('No overlapping historical dates found for the selected assets.');
+      }
+
+      // Compute units purchased on Day 0
+      const firstDate = sortedDates[0];
+      const units = {};
+      coinHistories.forEach(ch => {
+        const initialPrice = priceByDateAndCoin[firstDate][ch.coinId];
+        const investedAmt = (ch.weight / 100) * initialInvestment;
+        units[ch.coinId] = investedAmt / (initialPrice || 1);
+      });
+
+      // Create daily valuation timeline
+      const timeline = sortedDates.map(dStr => {
+        let totalVal = 0;
+        const breakDown = {};
+        coinHistories.forEach(ch => {
+          const price = priceByDateAndCoin[dStr][ch.coinId];
+          const coinVal = units[ch.coinId] * price;
+          totalVal += coinVal;
+          breakDown[ch.coinId] = {
+            price,
+            value: coinVal
+          };
+        });
+
+        return {
+          date: dStr,
+          formattedDate: new Date(dStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          value: totalVal,
+          breakDown
+        };
+      });
+
+      const startingBalance = initialInvestment;
+      const endingBalance = timeline[timeline.length - 1].value;
+      const netReturnAmount = endingBalance - startingBalance;
+      const netReturnPercent = (netReturnAmount / startingBalance) * 100;
+      const volatility = calculateVolatility(timeline);
+
+      setSimulationResult({
+        timeline,
+        startingBalance,
+        endingBalance,
+        netReturnAmount,
+        netReturnPercent,
+        volatility
+      });
+      setSimulated(true);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'An error occurred during simulation.');
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  const formatCurrency = (val) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   };
 
   return (
@@ -128,7 +249,7 @@ export default function Portfolio() {
                 className="form-input"
                 value={selectedCoinId}
                 onChange={e => setSelectedCoinId(e.target.value)}
-                disabled={loadingCoins}
+                disabled={loadingCoins || simulating}
               >
                 {allCoins.map(coin => (
                   <option key={coin.coin_id} value={coin.coin_id} style={{ background: 'var(--bg-secondary)', color: '#fff' }}>
@@ -140,7 +261,7 @@ export default function Portfolio() {
                 type="button" 
                 className="btn btn-primary" 
                 onClick={handleAddAsset}
-                disabled={loadingCoins || !selectedCoinId}
+                disabled={loadingCoins || !selectedCoinId || simulating}
               >
                 <Plus size={16} />
                 <span>Add</span>
@@ -196,6 +317,7 @@ export default function Portfolio() {
                           onChange={e => handleUpdateWeight(asset.coinId, e.target.value)}
                           min="0"
                           max="100"
+                          disabled={simulating}
                         />
                         <Percent size={12} style={{ position: 'absolute', right: '10px', color: 'var(--text-muted)' }} />
                       </div>
@@ -203,6 +325,7 @@ export default function Portfolio() {
                         type="button" 
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
                         onClick={() => handleRemoveAsset(asset.coinId)}
+                        disabled={simulating}
                         onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
                         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                       >
@@ -247,24 +370,71 @@ export default function Portfolio() {
             type="button" 
             className="btn btn-primary" 
             style={{ width: '100%', marginTop: '8px' }}
-            disabled={!isWeightValid || allocations.length === 0}
+            disabled={!isWeightValid || allocations.length === 0 || simulating}
             onClick={handleSimulate}
           >
-            <Play size={16} fill="#fff" />
-            <span>Simulate Portfolio Growth</span>
+            {simulating ? <Loader2 size={16} className="spinning" /> : <Play size={16} fill="#fff" />}
+            <span>{simulating ? 'Computing Simulation...' : 'Simulate Portfolio Growth'}</span>
           </button>
         </div>
 
-        {/* Results Panel Placeholder */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', color: 'var(--text-muted)', textAlign: 'center' }}>
-          <Briefcase size={48} style={{ opacity: 0.15, marginBottom: '16px' }} />
-          <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 600, marginBottom: '6px' }}>Simulation Results</h3>
-          <p style={{ fontSize: '13px', maxWidth: '280px' }}>
-            Configure your asset allocations to 100% and click simulate to visualize historical portfolio trends.
-          </p>
+        {/* Results Panel */}
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', minHeight: '300px', justifyContent: 'center' }}>
+          {simulating && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <Loader2 className="pulsing-glow spinning" size={36} color="var(--primary)" />
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Processing historic parallel aggregates...</span>
+            </div>
+          )}
+
+          {!simulating && !simulated && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Briefcase size={48} style={{ opacity: 0.15, marginBottom: '16px' }} />
+              <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 600, marginBottom: '6px' }}>Simulation Results</h3>
+              <p style={{ fontSize: '13px', maxWidth: '280px' }}>
+                Configure your asset allocations to 100% and click simulate to visualize historical portfolio trends.
+              </p>
+            </div>
+          )}
+
+          {!simulating && simulated && simulationResult && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="var(--warning)" />
+                <span>Simulation Summary</span>
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Starting Balance:</span>
+                  <span style={{ fontWeight: 600, color: '#fff' }}>{formatCurrency(simulationResult.startingBalance)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ending Balance:</span>
+                  <span style={{ fontWeight: 600, color: '#fff' }}>{formatCurrency(simulationResult.endingBalance)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Net Return ($):</span>
+                  <span style={{ fontWeight: 600, color: simulationResult.netReturnAmount >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {simulationResult.netReturnAmount >= 0 ? '+' : ''}{formatCurrency(simulationResult.netReturnAmount)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Net Return (%):</span>
+                  <span style={{ fontWeight: 600, color: simulationResult.netReturnPercent >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {simulationResult.netReturnPercent >= 0 ? '+' : ''}{simulationResult.netReturnPercent.toFixed(2)}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Portfolio Volatility (Daily Std Dev):</span>
+                  <span style={{ fontWeight: 600, color: 'var(--info)' }}>{simulationResult.volatility.toFixed(3)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
     </div>
   );
 }
+
