@@ -49,8 +49,54 @@ export default function Settings() {
     }, 4000);
   };
 
+  const playAudioAlert = (frequency = 440, type = 'sine', duration = 0.15) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+      
+      gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); // Low volume
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+      console.warn('Web Audio API is blocked or not supported:', e);
+    }
+  };
+
+  const handleToggleSound = () => {
+    const nextState = !soundNotifications;
+    setSoundNotifications(nextState);
+    if (nextState) {
+      playAudioAlert(523.25, 'sine', 0.1); // C5
+      setTimeout(() => {
+        playAudioAlert(659.25, 'sine', 0.12); // E5
+      }, 100);
+    }
+  };
+
   const handleResetSettings = () => {
-    // Stub for Commit 3 implementation
+    if (!window.confirm('Are you sure you want to reset all preferences to application defaults?')) return;
+    localStorage.removeItem('cryptosphere_settings');
+    setDefaultCurrency('USD');
+    setLayoutDensity('comfortable');
+    setPollingInterval('30');
+    setThemeAccent('space_blue');
+    setSoundNotifications(false);
+    setSuccessMsg('Preferences successfully reset to defaults.');
+    
+    window.dispatchEvent(new Event('settingsUpdated'));
+    
+    setTimeout(() => {
+      setSuccessMsg('');
+    }, 4000);
   };
 
   return (
@@ -172,22 +218,36 @@ export default function Settings() {
                   <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Audio Alarm Notifications</span>
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Play synth alert tones when high severity drop logs trigger.</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSoundNotifications(!soundNotifications)}
-                  style={{
-                    background: soundNotifications ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                    border: '1px solid var(--border-color)',
-                    color: soundNotifications ? '#fff' : 'var(--text-secondary)',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 600
-                  }}
-                >
-                  {soundNotifications ? 'Enabled' : 'Muted'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {soundNotifications && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playAudioAlert(880, 'sine', 0.15);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '10px', height: '28px' }}
+                    >
+                      Test Beep
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleToggleSound}
+                    style={{
+                      background: soundNotifications ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--border-color)',
+                      color: soundNotifications ? '#fff' : 'var(--text-secondary)',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {soundNotifications ? 'Enabled' : 'Muted'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
