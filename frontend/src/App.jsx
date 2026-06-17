@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Coins from './pages/Coins';
 import CoinDetails from './pages/CoinDetails';
 import Compare from './pages/Compare';
+import Heatmap from './pages/Heatmap';
 
 function PagePlaceholder({ title }) {
   return (
@@ -34,7 +35,7 @@ export default function App() {
             <Route path="coins" element={<Coins />} />
             <Route path="coins/:id" element={<CoinDetails />} />
             <Route path="compare" element={<Compare />} />
-            <Route path="heatmap" element={<PagePlaceholder title="Market Heatmap" />} />
+            <Route path="heatmap" element={<Heatmap />} />
             <Route path="stats" element={<PagePlaceholder title="Global Statistics" />} />
             <Route path="analytics" element={<PagePlaceholder title="Analytics Hub" />} />
             <Route path="portfolio" element={<PagePlaceholder title="Portfolio Simulator" />} />
