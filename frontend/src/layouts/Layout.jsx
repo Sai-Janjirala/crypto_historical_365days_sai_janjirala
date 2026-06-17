@@ -2,16 +2,12 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import { useAuth } from '../context/AuthContext';
 import './Layout.css';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Mocks for now, connected to AuthContext in later steps
-  const mockUser = null; 
-  const handleLogout = () => {
-    console.log('Logging out...');
-  };
+  const { user, logout } = useAuth();
 
   return (
     <div className="app-layout">
@@ -43,8 +39,8 @@ export default function Layout() {
       <div className="app-content">
         <Navbar 
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)} 
-          user={mockUser}
-          onLogout={handleLogout}
+          user={user}
+          onLogout={logout}
         />
         <main className="main-viewport">
           <Outlet />
