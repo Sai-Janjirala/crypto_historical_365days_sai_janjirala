@@ -11,6 +11,60 @@ export default function Alerts() {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [minSeverity, setMinSeverity] = useState('all'); // 'all', 'medium', 'high'
 
+  // Alerts data state
+  const [volatilityAlerts, setVolatilityAlerts] = useState([]);
+  const [marketDropAlerts, setMarketDropAlerts] = useState([]);
+
+  useEffect(() => {
+    async function loadAlerts() {
+      setLoading(true);
+      setError('');
+      try {
+        const volRes = await coinService.getHighVolatilityAlerts();
+        if (volRes.success && Array.isArray(volRes.data)) {
+          setVolatilityAlerts(volRes.data);
+        } else {
+          setError('Failed to fetch volatility alert feed.');
+        }
+
+        const dropRes = await coinService.getMarketDropAlerts();
+        if (dropRes.success && Array.isArray(dropRes.data)) {
+          setMarketDropAlerts(dropRes.data);
+        } else {
+          setError('Failed to fetch market drop warnings.');
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Error establishing connection with risk monitoring nodes.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAlerts();
+  }, []);
+
+  const getVolatilitySeverity = (val) => {
+    return val >= 20 ? 'high' : 'medium';
+  };
+
+  const getDropSeverity = (val) => {
+    return val <= -10 ? 'high' : 'medium';
+  };
+
+  const filteredVolatilityAlerts = volatilityAlerts.filter(item => {
+    if (minSeverity === 'all') return true;
+    const severity = getVolatilitySeverity(item.volatility_7d);
+    if (minSeverity === 'medium') return severity === 'medium' || severity === 'high';
+    return severity === 'high';
+  });
+
+  const filteredMarketDropAlerts = marketDropAlerts.filter(item => {
+    if (minSeverity === 'all') return true;
+    const severity = getDropSeverity(item.daily_return);
+    if (minSeverity === 'medium') return severity === 'medium' || severity === 'high';
+    return severity === 'high';
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left' }}>
       {/* Page Header */}
@@ -104,14 +158,161 @@ export default function Alerts() {
         </div>
       </div>
 
+      {error && (
+        <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(244, 63, 94, 0.3)', background: 'var(--danger-glow)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '250px', gap: '12px' }}>
           <Loader2 className="pulsing-glow spinning" size={32} color="var(--primary)" />
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Monitoring active alert signals...</span>
         </div>
       ) : (
-        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Feed items placeholder...
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          {activeTab === 'volatility' ? (
+            filteredVolatilityAlerts.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                No high volatility alerts match your severity settings.
+              </div>
+            ) : (
+              filteredVolatilityAlerts.map((item) => {
+                const severity = getVolatilitySeverity(item.volatility_7d);
+                return (
+                  <div
+                    key={item.coin_id}
+                    className="glass-panel"
+                    style={{
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      borderColor: severity === 'high' ? 'rgba(244, 63, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                      background: severity === 'high' ? 'rgba(244, 63, 94, 0.02)' : 'rgba(245, 158, 11, 0.02)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Activity size={18} color={severity === 'high' ? 'var(--danger)' : 'var(--warning)'} />
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{item.coin_name}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.symbol}</span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          background: severity === 'high' ? 'rgba(244, 63, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: severity === 'high' ? 'var(--danger)' : 'var(--warning)',
+                          border: severity === 'high' ? '1px solid rgba(244, 63, 94, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)'
+                        }}
+                      >
+                        {severity.toUpperCase()} RISK
+                      </span>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>7-day Volatility index:</span>
+                        <strong style={{ color: '#fff' }}>{item.volatility_7d.toFixed(2)}%</strong>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                        <div style={{ width: `${Math.min(100, item.volatility_7d * 2.5)}%`, height: '100%', background: severity === 'high' ? 'linear-gradient(90deg, var(--warning), var(--danger))' : 'var(--warning)' }}></div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <div>
+                        <span>Current Price:</span>
+                        <strong style={{ display: 'block', color: '#fff', fontSize: '12px', marginTop: '2px' }}>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.price)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Daily Return:</span>
+                        <strong style={{ display: 'block', color: item.daily_return >= 0 ? 'var(--success)' : 'var(--danger)', fontSize: '12px', marginTop: '2px' }}>
+                          {item.daily_return >= 0 ? '+' : ''}{item.daily_return.toFixed(2)}%
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : (
+            filteredMarketDropAlerts.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                No market drop warnings match your severity settings.
+              </div>
+            ) : (
+              filteredMarketDropAlerts.map((item) => {
+                const severity = getDropSeverity(item.daily_return);
+                return (
+                  <div
+                    key={item.coin_id}
+                    className="glass-panel"
+                    style={{
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      borderColor: severity === 'high' ? 'rgba(244, 63, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                      background: severity === 'high' ? 'rgba(244, 63, 94, 0.02)' : 'rgba(245, 158, 11, 0.02)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <TrendingDown size={18} color={severity === 'high' ? 'var(--danger)' : 'var(--warning)'} />
+                        <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{item.coin_name}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.symbol}</span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          background: severity === 'high' ? 'rgba(244, 63, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: severity === 'high' ? 'var(--danger)' : 'var(--warning)',
+                          border: severity === 'high' ? '1px solid rgba(244, 63, 94, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)'
+                        }}
+                      >
+                        {severity.toUpperCase()} DROP
+                      </span>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Daily return:</span>
+                        <strong style={{ color: 'var(--danger)' }}>{item.daily_return.toFixed(2)}%</strong>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                        <div style={{ width: `${Math.min(100, Math.abs(item.daily_return) * 6)}%`, height: '100%', background: severity === 'high' ? 'linear-gradient(90deg, var(--warning), var(--danger))' : 'var(--warning)' }}></div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <div>
+                        <span>Current Price:</span>
+                        <strong style={{ display: 'block', color: '#fff', fontSize: '12px', marginTop: '2px' }}>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.price)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>7-Day Volatility:</span>
+                        <strong style={{ display: 'block', color: '#fff', fontSize: '12px', marginTop: '2px' }}>
+                          {item.volatility_7d.toFixed(2)}%
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          )}
         </div>
       )}
     </div>
