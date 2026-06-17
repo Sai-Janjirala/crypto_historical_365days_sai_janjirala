@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { AlertOctagon, MessageSquareAlert, Send, FileText, CheckCircle, Search, Filter, Loader2, RefreshCw } from 'lucide-react';
+import { AlertOctagon, MessageSquareAlert, Send, FileText, CheckCircle, Search, Filter, Loader2, RefreshCw, Trash2, Calendar } from 'lucide-react';
 
 export default function Reports() {
   // Form states
@@ -17,6 +17,53 @@ export default function Reports() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Report database states
+  const [reports, setReports] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const loadReports = () => {
+    const local = localStorage.getItem('cryptosphere_reports');
+    if (!local) {
+      const defaultReports = [
+        {
+          report_id: 'REP-742918',
+          coin_id: 'bitcoin',
+          classification: 'inaccurate_price',
+          reporter_email: 'sec_officer@kraken.com',
+          evidence_url: 'https://etherscan.io',
+          description: 'Price feed anomaly showing $1.2M peak for 3 minutes due to liquidity oracle mismatch.',
+          date: 'Jun 15, 2026',
+          status: 'resolved'
+        },
+        {
+          report_id: 'REP-910481',
+          coin_id: 'ethereum',
+          classification: 'security_exploit',
+          reporter_email: 'audit@openzeppelin.com',
+          evidence_url: 'https://github.com/ethereum',
+          description: 'Gas cost overflow vulnerability detected in client validation layers on localized nodes.',
+          date: 'Jun 12, 2026',
+          status: 'under_investigation'
+        },
+        {
+          report_id: 'REP-389104',
+          coin_id: 'tether',
+          classification: 'scam',
+          reporter_email: 'research@messen.com',
+          evidence_url: '',
+          description: 'Suspicious duplicate smart contract mimicking Tether address circulating on mainnet.',
+          date: 'Jun 10, 2026',
+          status: 'pending'
+        }
+      ];
+      localStorage.setItem('cryptosphere_reports', JSON.stringify(defaultReports));
+      setReports(defaultReports);
+    } else {
+      setReports(JSON.parse(local));
+    }
+  };
+
   useEffect(() => {
     async function fetchCoins() {
       try {
@@ -31,6 +78,15 @@ export default function Reports() {
       }
     }
     fetchCoins();
+    loadReports();
+
+    const handleUpdate = () => {
+      loadReports();
+    };
+    window.addEventListener('reportsUpdated', handleUpdate);
+    return () => {
+      window.removeEventListener('reportsUpdated', handleUpdate);
+    };
   }, []);
 
   const handleSubmit = async (e) => {
@@ -85,6 +141,24 @@ export default function Reports() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const filteredReports = reports.filter(r => {
+    const coinMatch = r.coin_id && r.coin_id.toLowerCase().includes(searchQuery.toLowerCase());
+    const idMatch = r.report_id && r.report_id.toLowerCase().includes(searchQuery.toLowerCase());
+    const emailMatch = r.reporter_email && r.reporter_email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchQuery === '' || coinMatch || idMatch || emailMatch;
+    
+    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDeleteReport = (reportId) => {
+    if (!window.confirm(`Are you sure you want to dismiss report ${reportId}?`)) return;
+    const updated = reports.filter(r => r.report_id !== reportId);
+    localStorage.setItem('cryptosphere_reports', JSON.stringify(updated));
+    setReports(updated);
   };
 
   return (
@@ -207,8 +281,9 @@ export default function Reports() {
           </form>
         </div>
 
-        {/* Right Side: Informative Card / Preview */}
+        {/* Right Side: Informative Card & Reports Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Verification standards card */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileText size={16} color="var(--primary-hover)" />
@@ -226,6 +301,151 @@ export default function Reports() {
                 <span style={{ color: 'var(--success)' }}>🛡️</span>
                 <span>Verified security vulnerabilities are eligible for our Bug Bounty program.</span>
               </div>
+            </div>
+          </div>
+
+          {/* Reports Database Log */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} color="var(--primary-hover)" />
+                <span>Submitted Reports Database</span>
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                Browse active reports submitted by intelligence networks.
+              </p>
+            </div>
+
+            {/* Filter Bar */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '32px', width: '100%', fontSize: '12px' }}
+                  placeholder="Search target, report ID, email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <select
+                className="form-input"
+                style={{ width: '120px', fontSize: '12px', background: 'var(--bg-dark)' }}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="under_investigation">Investigation</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+
+            {/* Reports List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scroll">
+              {filteredReports.length === 0 ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  No reports matching the filters found.
+                </div>
+              ) : (
+                filteredReports.map((report) => {
+                  // Badges configurations
+                  const getStatusStyle = (status) => {
+                    switch (status) {
+                      case 'resolved':
+                        return { background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.2)' };
+                      case 'under_investigation':
+                        return { background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.2)' };
+                      default:
+                        return { background: 'rgba(244, 63, 94, 0.1)', color: 'var(--danger)', border: '1px solid rgba(244, 63, 94, 0.2)' };
+                    }
+                  };
+
+                  const getClassificationLabel = (c) => {
+                    switch (c) {
+                      case 'scam': return 'Project Scam';
+                      case 'inaccurate_price': return 'Pricing Error';
+                      case 'missing_history': return 'Missing History';
+                      case 'security_exploit': return 'Security Exploit';
+                      default: return 'Other Report';
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={report.report_id}
+                      className="glass-panel"
+                      style={{
+                        padding: '16px',
+                        background: 'rgba(255,255,255,0.01)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                      }}
+                    >
+                      {/* Card Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{report.report_id}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', textTransform: 'capitalize' }}>
+                            {report.coin_id}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', ...getStatusStyle(report.status) }}>
+                          {report.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Classification & Date */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span style={{ color: 'var(--primary-hover)', fontWeight: 600 }}>{getClassificationLabel(report.classification)}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar size={11} />
+                          <span>{report.date}</span>
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', margin: 0 }}>
+                        {report.description}
+                      </p>
+
+                      {/* Footer Info / Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                          By: {report.reporter_email}
+                        </span>
+                        
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {report.evidence_url && (
+                            <a
+                              href={report.evidence_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: '10px', color: 'var(--info)', textDecoration: 'none' }}
+                            >
+                              Evidence
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleDeleteReport(report.report_id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                            title="Dismiss Report"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
