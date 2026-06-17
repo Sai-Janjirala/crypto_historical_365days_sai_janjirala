@@ -7,18 +7,67 @@ import { ArrowLeft, TrendingUp, Calendar, Coins as CoinIcon, Award, DollarSign, 
 export default function CoinDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
   const [coin, setCoin] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Extended statistics states
+  const [volatilityExtremes, setVolatilityExtremes] = useState(null);
+  const [returnsExtremes, setReturnsExtremes] = useState(null);
+  const [marketCapExtremes, setMarketCapExtremes] = useState(null);
 
   useEffect(() => {
     async function fetchDetails() {
       setLoading(true);
       setError('');
       try {
-        const res = await coinService.getCoinById(id);
+        const [res, volRes, retRes, capRes] = await Promise.all([
+          coinService.getCoinById(id),
+          coinService.getVolatility(id).catch(() => null),
+          coinService.getReturns(id).catch(() => null),
+          coinService.getMarketCapDetails(id).catch(() => null)
+        ]);
+
         if (res.success && res.data) {
           setCoin(res.data);
+
+          // Compute volatility extremes
+          if (volRes?.success && Array.isArray(volRes.data) && volRes.data.length > 0) {
+            const vols = volRes.data.map(c => c.volatility_7d).filter(v => v !== null && v !== undefined);
+            if (vols.length > 0) {
+              setVolatilityExtremes({
+                max: Math.max(...vols),
+                min: Math.min(...vols),
+                avg: vols.reduce((sum, v) => sum + v, 0) / vols.length
+              });
+            }
+          }
+
+          // Compute returns extremes
+          if (retRes?.success && Array.isArray(retRes.data) && retRes.data.length > 0) {
+            const rets = retRes.data.map(c => c.daily_return).filter(r => r !== null && r !== undefined);
+            const cumRets = retRes.data.map(c => c.cumulative_return).filter(r => r !== null && r !== undefined);
+            if (rets.length > 0) {
+              setReturnsExtremes({
+                max: Math.max(...rets),
+                min: Math.min(...rets),
+                avgCum: cumRets.length > 0 ? cumRets.reduce((sum, r) => sum + r, 0) / cumRets.length : null
+              });
+            }
+          }
+
+          // Compute market cap extremes
+          if (capRes?.success && Array.isArray(capRes.data) && capRes.data.length > 0) {
+            const caps = capRes.data.map(c => c.market_cap).filter(c => c !== null && c !== undefined);
+            if (caps.length > 0) {
+              setMarketCapExtremes({
+                max: Math.max(...caps),
+                min: Math.min(...caps),
+                avg: caps.reduce((sum, c) => sum + c, 0) / caps.length
+              });
+            }
+          }
         } else {
           setError('Coin not found or database record missing.');
         }
@@ -160,6 +209,82 @@ export default function CoinDetails() {
             </div>
 
           </div>
+
+          {/* Extended Metrics Widget */}
+          {(volatilityExtremes || returnsExtremes || marketCapExtremes) && (
+            <div className="glass-panel" style={{ padding: '24px 30px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '18px', color: '#fff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Award size={18} color="var(--primary-hover)" />
+                <span>Historical Extremes & Distribution (365 Days)</span>
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                
+                {volatilityExtremes && (
+                  <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h4 style={{ fontSize: '13px', color: 'var(--info)', fontWeight: 700, textTransform: 'uppercase' }}>Volatility (7d)</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Historic Peak:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{volatilityExtremes.max.toFixed(2)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Historic Low:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{volatilityExtremes.min.toFixed(2)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Yearly Average:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{volatilityExtremes.avg.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {returnsExtremes && (
+                  <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h4 style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 700, textTransform: 'uppercase' }}>Daily Returns</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Best Return:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--success)' }}>+{returnsExtremes.max.toFixed(2)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Worst Return:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--danger)' }}>{returnsExtremes.min.toFixed(2)}%</span>
+                      </div>
+                      {returnsExtremes.avgCum !== null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Avg Cum. Return:</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: returnsExtremes.avgCum >= 0 ? 'var(--success)' : 'var(--danger)' }}>{returnsExtremes.avgCum.toFixed(2)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {marketCapExtremes && (
+                  <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h4 style={{ fontSize: '13px', color: 'var(--primary-hover)', fontWeight: 700, textTransform: 'uppercase' }}>Valuation Cap</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Highest Cap:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{formatCap(marketCapExtremes.max)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Lowest Cap:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{formatCap(marketCapExtremes.min)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Avg Cap:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#fff' }}>{formatCap(Math.round(marketCapExtremes.avg))}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
 
         </div>
 
