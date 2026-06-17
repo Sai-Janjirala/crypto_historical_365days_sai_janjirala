@@ -1,0 +1,263 @@
+import React, { useState, useEffect } from 'react';
+import coinService from '../services/coinService';
+import { Shield, Plus, Edit2, Trash2, Database, Upload, Download, FileJson, AlertTriangle, Loader2 } from 'lucide-react';
+
+export default function Admin() {
+  const [activeTab, setActiveTab] = useState('assets'); // 'assets' or 'bulk'
+  const [coins, setCoins] = useState([]);
+  const [loadingCoins, setLoadingCoins] = useState(true);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Form states for creating a new coin
+  const [newCoin, setNewCoin] = useState({
+    coin_id: '',
+    coin_name: '',
+    symbol: '',
+    price: '',
+    market_cap: '',
+    volume: '',
+    circulating_supply: '',
+    market_cap_rank: ''
+  });
+
+  // Edit states
+  const [editingCoin, setEditingCoin] = useState(null);
+
+  useEffect(() => {
+    async function loadCoins() {
+      try {
+        const res = await coinService.getLatest();
+        if (res.success && Array.isArray(res.data)) {
+          setCoins(res.data);
+        } else {
+          setError('Failed to fetch coin directories.');
+        }
+      } catch (err) {
+        console.error('Error fetching admin coin directory:', err);
+        setError('Error loading coin directory.');
+      } finally {
+        setLoadingCoins(false);
+      }
+    }
+    loadCoins();
+  }, []);
+
+  const handleCreateCoin = (e) => {
+    e.preventDefault();
+    alert('Create coin will be implemented in the next commit!');
+  };
+
+  const handleUpdateCoin = (e) => {
+    e.preventDefault();
+    alert('Update coin will be implemented in the next commit!');
+  };
+
+  const handleDeleteCoin = (coinId) => {
+    if (window.confirm(`Are you sure you want to delete ${coinId}?`)) {
+      alert('Delete coin will be implemented in the next commit!');
+    }
+  };
+
+  const formatCurrency = (val) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left' }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Shield size={28} color="var(--danger)" />
+            <span>Administrative Control Center</span>
+          </h1>
+          <p className="page-subtitle">Manage catalog assets, update prices, run bulk tools, and export system database.</p>
+        </div>
+
+        {/* Tab triggers */}
+        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <button
+            onClick={() => setActiveTab('assets')}
+            style={{
+              background: activeTab === 'assets' ? 'var(--primary)' : 'none',
+              border: 'none',
+              color: activeTab === 'assets' ? '#fff' : 'var(--text-secondary)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Asset Directory
+          </button>
+          <button
+            onClick={() => setActiveTab('bulk')}
+            style={{
+              background: activeTab === 'bulk' ? 'var(--primary)' : 'none',
+              border: 'none',
+              color: activeTab === 'bulk' ? '#fff' : 'var(--text-secondary)',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            Bulk & Export Utilities
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(244, 63, 94, 0.3)', background: 'var(--danger-glow)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'var(--success-glow)', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle size={18} />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {activeTab === 'assets' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px', alignItems: 'start' }}>
+          {/* Left: Coin List Table */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Database size={20} color="var(--primary-hover)" />
+              <span>Catalog Assets</span>
+            </h2>
+
+            {loadingCoins ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0', gap: '10px' }}>
+                <Loader2 className="pulsing-glow spinning" size={32} color="var(--primary)" />
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Retrieving asset inventory...</span>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                      <th style={{ padding: '10px' }}>ID / Name</th>
+                      <th style={{ padding: '10px' }}>Symbol</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Price</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coins.map((coin) => (
+                      <tr key={coin.coin_id} style={{ borderBottom: '1px solid var(--border-color)', color: '#fff' }}>
+                        <td style={{ padding: '12px 10px' }}>
+                          <div style={{ fontWeight: 600 }}>{coin.coin_name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{coin.coin_id}</div>
+                        </td>
+                        <td style={{ padding: '12px 10px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{coin.symbol}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(coin.price)}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                            <button
+                              onClick={() => setEditingCoin(coin)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+                              onMouseEnter={e => e.currentTarget.style.color = 'var(--primary-hover)'}
+                              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCoin(coin.coin_id)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+                              onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Create or Edit Forms */}
+          <div>
+            {!editingCoin ? (
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={18} color="var(--success)" />
+                  <span>Create Asset</span>
+                </h2>
+                <form onSubmit={handleCreateCoin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Coin ID (unique-identifier)</label>
+                    <input type="text" className="form-input" placeholder="e.g. bitcoin" required />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Coin Name</label>
+                    <input type="text" className="form-input" placeholder="e.g. Bitcoin" required />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Symbol</label>
+                    <input type="text" className="form-input" placeholder="e.g. BTC" required />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Price ($)</label>
+                    <input type="number" className="form-input" placeholder="0.00" step="any" required />
+                  </div>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
+                    <Plus size={16} />
+                    <span>Create Asset</span>
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', borderColor: 'rgba(95, 82, 255, 0.4)' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Edit2 size={18} color="var(--primary-hover)" />
+                  <span>Edit {editingCoin.coin_name}</span>
+                </h2>
+                <form onSubmit={handleUpdateCoin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Price ($)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      defaultValue={editingCoin.price} 
+                      step="any" 
+                      required 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                      Save
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setEditingCoin(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'bulk' && (
+        <div className="glass-panel" style={{ padding: '40px', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+          <Upload size={48} style={{ opacity: 0.15, marginBottom: '16px' }} />
+          <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 600 }}>Bulk Actions Placeholder</h3>
+          <p style={{ fontSize: '13px', marginTop: '6px' }}>
+            Bulk upload and DB exports will be implemented in subsequent commits.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
