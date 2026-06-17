@@ -12,9 +12,41 @@ export default function Settings() {
   // UI states
   const [successMsg, setSuccessMsg] = useState('');
 
+  useEffect(() => {
+    const saved = localStorage.getItem('cryptosphere_settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.defaultCurrency) setDefaultCurrency(parsed.defaultCurrency);
+        if (parsed.layoutDensity) setLayoutDensity(parsed.layoutDensity);
+        if (parsed.pollingInterval) setPollingInterval(parsed.pollingInterval);
+        if (parsed.themeAccent) setThemeAccent(parsed.themeAccent);
+        if (parsed.soundNotifications !== undefined) setSoundNotifications(parsed.soundNotifications);
+      } catch (e) {
+        console.error('Failed to parse settings from localStorage:', e);
+      }
+    }
+  }, []);
+
   const handleSaveSettings = (e) => {
     e.preventDefault();
-    // Stub for Commit 2 implementation
+    setSuccessMsg('');
+    const payload = {
+      defaultCurrency,
+      layoutDensity,
+      pollingInterval,
+      themeAccent,
+      soundNotifications,
+    };
+    localStorage.setItem('cryptosphere_settings', JSON.stringify(payload));
+    setSuccessMsg('Application preferences successfully saved to storage.');
+    
+    // Trigger window event so other layout panels can react if needed
+    window.dispatchEvent(new Event('settingsUpdated'));
+
+    setTimeout(() => {
+      setSuccessMsg('');
+    }, 4000);
   };
 
   const handleResetSettings = () => {
