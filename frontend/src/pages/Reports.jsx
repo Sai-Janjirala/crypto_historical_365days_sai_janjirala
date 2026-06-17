@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { AlertOctagon, MessageSquareAlert, Send, FileText, CheckCircle, Search, Filter, Loader2, RefreshCw, Trash2, Calendar } from 'lucide-react';
+import { AlertOctagon, MessageSquare, Send, FileText, CheckCircle, Search, Filter, Loader2, RefreshCw, Trash2, Calendar } from 'lucide-react';
 
 export default function Reports() {
   // Form states
@@ -190,7 +190,7 @@ export default function Reports() {
         {/* Left Side: Report Submission Form */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MessageSquareAlert size={18} color="var(--primary-hover)" />
+            <MessageSquare size={18} color="var(--primary-hover)" />
             <span>Submit Intelligence Report</span>
           </h2>
 
