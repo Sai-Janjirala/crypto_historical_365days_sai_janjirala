@@ -11,6 +11,7 @@ import VerifyEmail from './pages/auth/VerifyEmail';
 import ProtectedRoute from './components/ProtectedRoute';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
+import Coins from './pages/Coins';
 
 function PagePlaceholder({ title }) {
   return (
@@ -28,7 +29,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="coins" element={<PagePlaceholder title="Coins Directory" />} />
+            <Route path="coins" element={<Coins />} />
             <Route path="compare" element={<PagePlaceholder title="Compare Coins" />} />
             <Route path="heatmap" element={<PagePlaceholder title="Market Heatmap" />} />
             <Route path="stats" element={<PagePlaceholder title="Global Statistics" />} />
