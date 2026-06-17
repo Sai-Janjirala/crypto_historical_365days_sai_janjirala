@@ -25,6 +25,10 @@ export default function Admin() {
   const [editingCoin, setEditingCoin] = useState(null);
   const [editPrice, setEditPrice] = useState('');
 
+  // Bulk & Export states
+  const [bulkJsonText, setBulkJsonText] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   useEffect(() => {
     async function loadCoins() {
       try {
@@ -119,6 +123,114 @@ export default function Admin() {
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Error occurred while deleting asset.');
+    }
+  };
+
+  const handleBulkCreate = async () => {
+    if (!bulkJsonText.trim()) {
+      setError('Please enter a JSON array containing coin records.');
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    setBulkLoading(true);
+    try {
+      const parsed = JSON.parse(bulkJsonText);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Input must be a valid JSON array of coin records.');
+      }
+      const res = await coinService.bulkCreate(parsed);
+      if (res.success) {
+        setSuccessMsg(`Successfully bulk-created ${parsed.length} assets!`);
+        setBulkJsonText('');
+        // Refresh table
+        const latestRes = await coinService.getLatest();
+        if (latestRes.success && Array.isArray(latestRes.data)) {
+          setCoins(latestRes.data);
+        }
+      } else {
+        setError(res.message || 'Bulk creation failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to parse or process bulk payload. Make sure it is a valid JSON array.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkUpdate = async () => {
+    if (!bulkJsonText.trim()) {
+      setError('Please enter a JSON array containing coin records to update.');
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    setBulkLoading(true);
+    try {
+      const parsed = JSON.parse(bulkJsonText);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Input must be a valid JSON array of coin records.');
+      }
+      const res = await coinService.bulkUpdate(parsed);
+      if (res.success) {
+        setSuccessMsg(`Successfully bulk-updated ${parsed.length} assets!`);
+        setBulkJsonText('');
+        // Refresh table
+        const latestRes = await coinService.getLatest();
+        if (latestRes.success && Array.isArray(latestRes.data)) {
+          setCoins(latestRes.data);
+        }
+      } else {
+        setError(res.message || 'Bulk update failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to parse or process bulk payload. Make sure it is a valid JSON array.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportJson = async () => {
+    setError('');
+    setSuccessMsg('');
+    try {
+      const res = await coinService.exportJson();
+      const jsonStr = JSON.stringify(res, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `crypto_catalog_export_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSuccessMsg('JSON catalog database exported successfully!');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to export catalog JSON.');
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setError('');
+    setSuccessMsg('');
+    try {
+      const data = await coinService.exportCsv();
+      const url = URL.createObjectURL(new Blob([data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `crypto_catalog_export_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSuccessMsg('CSV catalog database exported successfully!');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to export catalog CSV.');
     }
   };
 
@@ -386,12 +498,124 @@ export default function Admin() {
       )}
 
       {activeTab === 'bulk' && (
-        <div className="glass-panel" style={{ padding: '40px', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-          <Upload size={48} style={{ opacity: 0.15, marginBottom: '16px' }} />
-          <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 600 }}>Bulk Actions Placeholder</h3>
-          <p style={{ fontSize: '13px', marginTop: '6px' }}>
-            Bulk upload and DB exports will be implemented in subsequent commits.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px', alignItems: 'start' }}>
+          
+          {/* Left: Bulk Input JSON Paste */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Upload size={20} color="var(--primary-hover)" />
+                <span>Bulk Catalog Creator & Updater</span>
+              </h2>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Paste a raw JSON array of coin asset entries. Fields required for bulk creation include coin_id, coin_name, symbol, and price.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <textarea
+                className="form-input"
+                style={{ minHeight: '220px', fontFamily: 'var(--font-mono)', fontSize: '12px', resize: 'vertical' }}
+                placeholder='[&#10;  {&#10;    "coin_id": "solana",&#10;    "coin_name": "Solana",&#10;    "symbol": "sol",&#10;    "price": 145.20&#10;  }&#10;]'
+                value={bulkJsonText}
+                onChange={e => setBulkJsonText(e.target.value)}
+                disabled={bulkLoading}
+              />
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  onClick={handleBulkCreate}
+                  disabled={bulkLoading}
+                >
+                  {bulkLoading ? <Loader2 className="spinning" size={14} /> : <Plus size={14} />}
+                  <span>Bulk Create</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  onClick={handleBulkUpdate}
+                  disabled={bulkLoading}
+                >
+                  {bulkLoading ? <Loader2 className="spinning" size={14} /> : <Upload size={14} />}
+                  <span>Bulk Update</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Database Export Hub */}
+          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Download size={18} color="var(--success)" />
+                <span>Catalog Export Hub</span>
+              </h2>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Download the complete active coin records database in structured formats.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
+              {/* Export JSON Card */}
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  padding: '14px 16px', 
+                  background: 'rgba(255,255,255,0.02)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: 'var(--radius-sm)' 
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileJson size={20} color="var(--primary-hover)" />
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>JSON Format</span>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                  onClick={handleExportJson}
+                >
+                  <span>Export</span>
+                </button>
+              </div>
+
+              {/* Export CSV Card */}
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  padding: '14px 16px', 
+                  background: 'rgba(255,255,255,0.02)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: 'var(--radius-sm)' 
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Database size={20} color="var(--success)" />
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>CSV Format</span>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                  onClick={handleExportCsv}
+                >
+                  <span>Export</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       )}
     </div>
