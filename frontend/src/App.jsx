@@ -26,6 +26,8 @@ import Alerts from './pages/Alerts';
 import Leaderboards from './pages/Leaderboards';
 import Settings from './pages/Settings';
 import Education from './pages/Education';
+import NotFound from './pages/NotFound';
+
 
 function PagePlaceholder({ title }) {
   return (
@@ -71,7 +73,7 @@ export default function App() {
               </ProtectedRoute>
             } />
             <Route path="settings" element={<Settings />} />
-            <Route path="*" element={<PagePlaceholder title="404 Not Found" />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
           
           {/* Authentication Pages (Full Viewport) */}
