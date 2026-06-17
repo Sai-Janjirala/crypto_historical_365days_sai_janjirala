@@ -28,16 +28,6 @@ import Settings from './pages/Settings';
 import Education from './pages/Education';
 import NotFound from './pages/NotFound';
 
-
-function PagePlaceholder({ title }) {
-  return (
-    <div className="glass-panel" style={{ padding: '40px', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '24px', marginBottom: '8px' }}>{title} Page</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>This section is currently under construction and will be implemented in a subsequent PR step.</p>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <AuthProvider>
