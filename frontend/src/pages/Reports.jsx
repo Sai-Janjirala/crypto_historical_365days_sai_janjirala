@@ -35,7 +35,56 @@ export default function Reports() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Stub for Commit 2 submission implementation
+    setErrorMsg('');
+    setSuccessMsg('');
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        coin_id: selectedCoin,
+        classification: reportType,
+        reporter_email: reporterEmail,
+        evidence_url: evidenceUrl,
+        description: description,
+      };
+
+      const res = await coinService.submitReport(payload);
+      
+      if (res.success) {
+        setSuccessMsg(res.message || 'Thank you! The intelligence report has been recorded and submitted for audit review.');
+        
+        // Save to local storage for local persistence in Commit 3
+        const localReports = JSON.parse(localStorage.getItem('cryptosphere_reports') || '[]');
+        const newReportRecord = {
+          report_id: `REP-${Math.floor(100000 + Math.random() * 900000)}`,
+          coin_id: selectedCoin,
+          classification: reportType,
+          reporter_email: reporterEmail,
+          evidence_url: evidenceUrl,
+          description: description,
+          date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+          status: 'pending'
+        };
+        localStorage.setItem('cryptosphere_reports', JSON.stringify([newReportRecord, ...localReports]));
+
+        // Trigger an update event or state so list refreshes
+        window.dispatchEvent(new Event('reportsUpdated'));
+
+        // Reset inputs
+        setSelectedCoin('');
+        setReportType('scam');
+        setDescription('');
+        setEvidenceUrl('');
+        setReporterEmail('');
+      } else {
+        setErrorMsg(res.message || 'Submission rejected by the server verification node.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.message || 'Error occurred while sending the verification report payload.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -48,6 +97,20 @@ export default function Reports() {
         </h1>
         <p className="page-subtitle">Submit security alerts, flag suspected rug pulls, or report coin parameter inaccuracies directly to verification systems.</p>
       </div>
+
+      {errorMsg && (
+        <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(244, 63, 94, 0.3)', background: 'var(--danger-glow)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertOctagon size={18} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="glass-panel" style={{ padding: '16px', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'var(--success-glow)', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle size={18} />
+          <span>{successMsg}</span>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
         {/* Left Side: Report Submission Form */}
@@ -137,9 +200,9 @@ export default function Reports() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }}>
-              <Send size={16} />
-              <span>Submit Incident Report</span>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={submitting}>
+              {submitting ? <Loader2 className="spinning" size={16} /> : <Send size={16} />}
+              <span>{submitting ? 'Submitting Report...' : 'Submit Incident Report'}</span>
             </button>
           </form>
         </div>
