@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { Briefcase, Plus, Trash2, AlertTriangle, CheckCircle, Percent, DollarSign, Play, Loader2, Sparkles } from 'lucide-react';
+import { Briefcase, Plus, Trash2, AlertTriangle, CheckCircle, Percent, DollarSign, Play, Loader2, Sparkles, TrendingUp, TrendingDown, Shield } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function Portfolio() {
   const [allCoins, setAllCoins] = useState([]);
@@ -208,6 +209,25 @@ export default function Portfolio() {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   };
 
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="glass-panel" style={{ padding: '12px 16px', border: '1px solid var(--border-hover)', fontSize: '13px', background: 'rgba(15, 17, 26, 0.95)' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
+            {new Date(payload[0].payload.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+          <p style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>
+            Portfolio Value: <span style={{ color: 'var(--primary-hover)' }}>{formatCurrency(payload[0].value)}</span>
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
+            Total Growth: {((payload[0].value - initialInvestment) / initialInvestment * 100).toFixed(2)}%
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left' }}>
       {/* Page Header */}
@@ -398,40 +418,98 @@ export default function Portfolio() {
           )}
 
           {!simulating && simulated && simulationResult && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={18} color="var(--warning)" />
-                <span>Simulation Summary</span>
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Starting Balance:</span>
-                  <span style={{ fontWeight: 600, color: '#fff' }}>{formatCurrency(simulationResult.startingBalance)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+              
+              {/* Metrics cards grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                
+                {/* Ending Balance */}
+                <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ending Balance</span>
+                  <strong style={{ fontSize: '16px', color: '#fff', textShadow: 'var(--glow-primary)' }}>
+                    {formatCurrency(simulationResult.endingBalance)}
+                  </strong>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>from {formatCurrency(simulationResult.startingBalance)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Ending Balance:</span>
-                  <span style={{ fontWeight: 600, color: '#fff' }}>{formatCurrency(simulationResult.endingBalance)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Net Return ($):</span>
-                  <span style={{ fontWeight: 600, color: simulationResult.netReturnAmount >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                    {simulationResult.netReturnAmount >= 0 ? '+' : ''}{formatCurrency(simulationResult.netReturnAmount)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Net Return (%):</span>
-                  <span style={{ fontWeight: 600, color: simulationResult.netReturnPercent >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+
+                {/* Net Return % */}
+                <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Return (%)</span>
+                  <strong style={{ fontSize: '16px', color: simulationResult.netReturnPercent >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                     {simulationResult.netReturnPercent >= 0 ? '+' : ''}{simulationResult.netReturnPercent.toFixed(2)}%
-                  </span>
+                  </strong>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>growth rate</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Portfolio Volatility (Daily Std Dev):</span>
-                  <span style={{ fontWeight: 600, color: 'var(--info)' }}>{simulationResult.volatility.toFixed(3)}%</span>
+
+                {/* Net Return $ */}
+                <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Profit</span>
+                  <strong style={{ fontSize: '16px', color: simulationResult.netReturnAmount >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {simulationResult.netReturnAmount >= 0 ? '+' : ''}{formatCurrency(simulationResult.netReturnAmount)}
+                  </strong>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>absolute gain</span>
+                </div>
+
+                {/* Volatility */}
+                <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Volatility score</span>
+                  <strong style={{ fontSize: '16px', color: 'var(--info)' }}>
+                    {simulationResult.volatility.toFixed(3)}%
+                  </strong>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>daily deviation</span>
+                </div>
+
+              </div>
+
+              {/* Area Chart visualization */}
+              <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} color="var(--warning)" />
+                  <span>Historical Valuation Curve</span>
+                </h4>
+                
+                <div style={{ width: '100%', height: '280px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={simulationResult.timeline} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorPortfolio" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.03)" vertical={false} />
+                      <XAxis 
+                        dataKey="formattedDate" 
+                        stroke="var(--text-muted)" 
+                        fontSize={10} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        stroke="var(--text-muted)" 
+                        fontSize={10} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        tickFormatter={(val) => `$${val.toLocaleString()}`}
+                        dx={-10}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="var(--primary)" 
+                        strokeWidth={2.5}
+                        fillOpacity={1} 
+                        fill="url(#colorPortfolio)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
+
             </div>
           )}
-        </div>
 
       </div>
     </div>
