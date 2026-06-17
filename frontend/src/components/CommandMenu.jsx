@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Compass, X, Command } from 'lucide-react';
+import { Search, Compass, X, Command, Activity } from 'lucide-react';
+import coinService from '../services/coinService';
 
 const shortcuts = [
   { label: 'Go to Dashboard', path: '/' },
@@ -23,15 +24,54 @@ export default function CommandMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  
+  // Dynamic assets list
+  const [coinsList, setCoinsList] = useState([]);
+  
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  // Filter shortcuts
+  // Fetch coins index for searching
+  useEffect(() => {
+    async function loadCoins() {
+      try {
+        const res = await coinService.getLatest();
+        if (res.success && Array.isArray(res.data)) {
+          setCoinsList(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load command menu assets index:', err);
+      }
+    }
+    if (isOpen) {
+      loadCoins();
+    }
+  }, [isOpen]);
+
+  // Filter shortcuts matching query
   const filteredShortcuts = shortcuts.filter(s =>
     s.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalItems = filteredShortcuts.length;
+  // Filter coins matching query (only if query is not empty to avoid listing 100 items on start)
+  const filteredCoins = searchQuery.trim() === '' ? [] : coinsList.filter(c =>
+    c.coin_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.coin_id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Unify results for keyboard index navigation
+  const unifiedItems = [
+    ...filteredShortcuts.map(s => ({ type: 'shortcut', label: s.label, path: s.path })),
+    ...filteredCoins.map(c => ({ 
+      type: 'coin', 
+      label: `${c.coin_name} (${c.symbol.toUpperCase()})`, 
+      path: `/coins/${c.coin_id}`,
+      price: c.price
+    }))
+  ];
+
+  const totalItems = unifiedItems.length;
 
   const handleSelect = (path) => {
     navigate(path);
@@ -60,16 +100,16 @@ export default function CommandMenu() {
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (totalItems > 0 && filteredShortcuts[highlightedIndex]) {
-          handleSelect(filteredShortcuts[highlightedIndex].path);
+        if (totalItems > 0 && unifiedItems[highlightedIndex]) {
+          handleSelect(unifiedItems[highlightedIndex].path);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, totalItems, highlightedIndex, filteredShortcuts]);
+  }, [isOpen, totalItems, highlightedIndex, unifiedItems]);
 
-  // Focus input on open & reset
+  // Focus input on open & reset state
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => {
@@ -140,7 +180,7 @@ export default function CommandMenu() {
               boxShadow: 'none',
               color: '#fff'
             }}
-            placeholder="Type a command or search assets... (Press ESC to close)"
+            placeholder="Search coin assets or shortcuts... (Press ESC to close)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -152,40 +192,94 @@ export default function CommandMenu() {
           </button>
         </div>
 
-        {/* Shortcuts list container */}
-        <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '8px' }} className="custom-scroll">
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', padding: '6px 10px', fontWeight: 600 }}>
-            Global Shortcuts
-          </div>
-          {filteredShortcuts.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-              No commands matched your query.
+        {/* Shortcuts & Asset list container */}
+        <div style={{ maxHeight: '350px', overflowY: 'auto', padding: '8px' }} className="custom-scroll">
+          
+          {/* Unified Items Rendering */}
+          {totalItems === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              No matches found for "{searchQuery}"
             </div>
           ) : (
-            filteredShortcuts.map((item, index) => {
-              const isHighlighted = highlightedIndex === index;
-              return (
-                <div
-                  key={item.path}
-                  onClick={() => handleSelect(item.path)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: isHighlighted ? 'var(--primary)' : 'none',
-                    color: isHighlighted ? '#fff' : 'var(--text-secondary)',
-                    transition: 'background 0.15s ease'
-                  }}
-                >
-                  <Command size={14} color={isHighlighted ? '#fff' : 'var(--text-muted)'} />
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
-                </div>
-              );
-            })
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              
+              {/* If we have shortcuts */}
+              {filteredShortcuts.length > 0 && (
+                <>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', padding: '6px 10px', fontWeight: 600, letterSpacing: '0.5px' }}>
+                    Navigation Shortcuts
+                  </div>
+                  {filteredShortcuts.map((item, index) => {
+                    const globalIndex = index;
+                    const isHighlighted = highlightedIndex === globalIndex;
+                    return (
+                      <div
+                        key={item.path}
+                        onClick={() => handleSelect(item.path)}
+                        onMouseEnter={() => setHighlightedIndex(globalIndex)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          background: isHighlighted ? 'var(--primary)' : 'none',
+                          color: isHighlighted ? '#fff' : 'var(--text-secondary)',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        <Command size={14} color={isHighlighted ? '#fff' : 'var(--text-muted)'} />
+                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* If we have matching coins */}
+              {filteredCoins.length > 0 && (
+                <>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', padding: '12px 10px 6px 10px', fontWeight: 600, letterSpacing: '0.5px' }}>
+                    Matching Catalog Assets
+                  </div>
+                  {filteredCoins.map((item, index) => {
+                    const globalIndex = filteredShortcuts.length + index;
+                    const isHighlighted = highlightedIndex === globalIndex;
+                    return (
+                      <div
+                        key={item.coin_id}
+                        onClick={() => handleSelect(`/coins/${item.coin_id}`)}
+                        onMouseEnter={() => setHighlightedIndex(globalIndex)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          background: isHighlighted ? 'var(--primary)' : 'none',
+                          color: isHighlighted ? '#fff' : 'var(--text-secondary)',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Activity size={14} color={isHighlighted ? '#fff' : 'var(--primary-hover)'} />
+                          <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.coin_name}</span>
+                          <span style={{ fontSize: '10px', color: isHighlighted ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', textTransform: 'uppercase' }}>
+                            {item.symbol}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: isHighlighted ? '#fff' : 'var(--primary-hover)' }}>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.price)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+            </div>
           )}
         </div>
 
