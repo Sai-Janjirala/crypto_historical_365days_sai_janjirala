@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import coinService from '../services/coinService';
+import HistoryChart from '../components/HistoryChart';
 import { ArrowLeft, TrendingUp, Calendar, Coins as CoinIcon, Award, DollarSign, Activity, ChevronRight, Loader2, BarChart2 } from 'lucide-react';
 
 export default function CoinDetails() {
@@ -118,13 +119,13 @@ export default function CoinDetails() {
         {/* Main Details Panel & Chart Placeholder */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Chart Placement (Step 9 Integration) */}
-          <div className="glass-panel" style={{ padding: '30px', minHeight: '380px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
-            <BarChart2 size={48} color="var(--primary-hover)" className="pulsing-glow" />
-            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '18px', color: '#fff' }}>Historical Price Trends</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', maxWidth: '320px', textAlign: 'center' }}>
-              The interactive historical price charts will be loaded in Step 9.
-            </p>
+          {/* Chart Placement */}
+          <div className="glass-panel" style={{ padding: '24px 30px', minHeight: '420px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '18px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BarChart2 size={18} color="var(--primary-hover)" />
+              <span>Historical Price Charts</span>
+            </h3>
+            <HistoryChart coinId={coin.coin_id} />
           </div>
 
           {/* Key Stat Cards Grid */}
