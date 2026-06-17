@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { Shield, Plus, Edit2, Trash2, Database, Upload, Download, FileJson, AlertTriangle, Loader2 } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Database, Upload, Download, FileJson, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('assets'); // 'assets' or 'bulk'
@@ -23,6 +23,7 @@ export default function Admin() {
 
   // Edit states
   const [editingCoin, setEditingCoin] = useState(null);
+  const [editPrice, setEditPrice] = useState('');
 
   useEffect(() => {
     async function loadCoins() {
@@ -43,19 +44,81 @@ export default function Admin() {
     loadCoins();
   }, []);
 
-  const handleCreateCoin = (e) => {
+  const handleCreateCoin = async (e) => {
     e.preventDefault();
-    alert('Create coin will be implemented in the next commit!');
+    setError('');
+    setSuccessMsg('');
+    try {
+      const payload = {
+        coin_id: newCoin.coin_id,
+        coin_name: newCoin.coin_name,
+        symbol: newCoin.symbol,
+        price: parseFloat(newCoin.price) || 0,
+        market_cap: parseFloat(newCoin.market_cap) || 0,
+        volume: parseFloat(newCoin.volume) || 0,
+        circulating_supply: parseFloat(newCoin.circulating_supply) || 0,
+        market_cap_rank: parseInt(newCoin.market_cap_rank) || undefined
+      };
+      const res = await coinService.createCoin(payload);
+      if (res.success) {
+        setSuccessMsg(`Asset "${payload.coin_name}" created successfully!`);
+        setCoins([res.data, ...coins]);
+        setNewCoin({
+          coin_id: '',
+          coin_name: '',
+          symbol: '',
+          price: '',
+          market_cap: '',
+          volume: '',
+          circulating_supply: '',
+          market_cap_rank: ''
+        });
+      } else {
+        setError(res.message || 'Failed to create asset.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error occurred while creating asset.');
+    }
   };
 
-  const handleUpdateCoin = (e) => {
+  const handleUpdateCoin = async (e) => {
     e.preventDefault();
-    alert('Update coin will be implemented in the next commit!');
+    setError('');
+    setSuccessMsg('');
+    try {
+      const payload = {
+        price: parseFloat(editPrice) || 0
+      };
+      const res = await coinService.updateCoin(editingCoin.coin_id, payload);
+      if (res.success) {
+        setSuccessMsg(`Asset "${editingCoin.coin_name}" updated successfully!`);
+        setCoins(coins.map(c => c.coin_id === editingCoin.coin_id ? res.data : c));
+        setEditingCoin(null);
+      } else {
+        setError(res.message || 'Failed to update asset.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error occurred while updating asset.');
+    }
   };
 
-  const handleDeleteCoin = (coinId) => {
-    if (window.confirm(`Are you sure you want to delete ${coinId}?`)) {
-      alert('Delete coin will be implemented in the next commit!');
+  const handleDeleteCoin = async (coinId) => {
+    if (!window.confirm(`Are you sure you want to delete asset "${coinId}"?`)) return;
+    setError('');
+    setSuccessMsg('');
+    try {
+      const res = await coinService.deleteCoin(coinId);
+      if (res.success) {
+        setSuccessMsg(`Asset "${coinId}" deleted successfully!`);
+        setCoins(coins.filter(c => c.coin_id !== coinId));
+      } else {
+        setError(res.message || 'Failed to delete asset.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error occurred while deleting asset.');
     }
   };
 
@@ -161,7 +224,10 @@ export default function Admin() {
                         <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', gap: '8px' }}>
                             <button
-                              onClick={() => setEditingCoin(coin)}
+                              onClick={() => {
+                                setEditingCoin(coin);
+                                setEditPrice(coin.price);
+                              }}
                               style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
                               onMouseEnter={e => e.currentTarget.style.color = 'var(--primary-hover)'}
                               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
@@ -197,19 +263,88 @@ export default function Admin() {
                 <form onSubmit={handleCreateCoin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label className="form-label" style={{ fontSize: '10px' }}>Coin ID (unique-identifier)</label>
-                    <input type="text" className="form-input" placeholder="e.g. bitcoin" required />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. bitcoin" 
+                      value={newCoin.coin_id}
+                      onChange={e => setNewCoin({...newCoin, coin_id: e.target.value})}
+                      required 
+                    />
                   </div>
                   <div>
                     <label className="form-label" style={{ fontSize: '10px' }}>Coin Name</label>
-                    <input type="text" className="form-input" placeholder="e.g. Bitcoin" required />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Bitcoin" 
+                      value={newCoin.coin_name}
+                      onChange={e => setNewCoin({...newCoin, coin_name: e.target.value})}
+                      required 
+                    />
                   </div>
                   <div>
                     <label className="form-label" style={{ fontSize: '10px' }}>Symbol</label>
-                    <input type="text" className="form-input" placeholder="e.g. BTC" required />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. BTC" 
+                      value={newCoin.symbol}
+                      onChange={e => setNewCoin({...newCoin, symbol: e.target.value})}
+                      required 
+                    />
                   </div>
                   <div>
                     <label className="form-label" style={{ fontSize: '10px' }}>Price ($)</label>
-                    <input type="number" className="form-input" placeholder="0.00" step="any" required />
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="0.00" 
+                      step="any" 
+                      value={newCoin.price}
+                      onChange={e => setNewCoin({...newCoin, price: e.target.value})}
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Market Cap ($)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="0" 
+                      value={newCoin.market_cap}
+                      onChange={e => setNewCoin({...newCoin, market_cap: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Volume ($)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="0" 
+                      value={newCoin.volume}
+                      onChange={e => setNewCoin({...newCoin, volume: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Supply</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="0" 
+                      value={newCoin.circulating_supply}
+                      onChange={e => setNewCoin({...newCoin, circulating_supply: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '10px' }}>Rank</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 1" 
+                      value={newCoin.market_cap_rank}
+                      onChange={e => setNewCoin({...newCoin, market_cap_rank: e.target.value})}
+                    />
                   </div>
                   <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
                     <Plus size={16} />
@@ -229,7 +364,8 @@ export default function Admin() {
                     <input 
                       type="number" 
                       className="form-input" 
-                      defaultValue={editingCoin.price} 
+                      value={editPrice} 
+                      onChange={e => setEditPrice(e.target.value)}
                       step="any" 
                       required 
                     />
