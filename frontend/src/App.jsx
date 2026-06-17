@@ -3,6 +3,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layouts/Layout';
 
 import { AuthProvider } from './context/AuthContext';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import VerifyEmail from './pages/auth/VerifyEmail';
 
 // Temporary page placeholders (will be built out in future PRs)
 function HomePlaceholder() {
@@ -61,6 +66,13 @@ export default function App() {
             <Route path="settings" element={<PagePlaceholder title="Settings" />} />
             <Route path="*" element={<PagePlaceholder title="404 Not Found" />} />
           </Route>
+          
+          {/* Authentication Pages (Full Viewport) */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
