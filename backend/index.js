@@ -1,60 +1,55 @@
-// ============================================================
-// index.js — Main Server Entry Point
-// ============================================================
-// This is the file you run to start the backend server.
-// It only sets up Express, middleware, DB connection, and
-// one test route. Business logic goes in other folders later.
-// ============================================================
-
-// Import Express — the framework that handles HTTP requests/responses
 const express = require("express");
-
-// Import mongoose — required by the assignment; actual connect() runs inside config/db.js
-const mongoose = require("mongoose");
-
-// Import cors — allows our React frontend (different port) to call this API later
-const cors = require("cors");
-
-// Import dotenv — loads variables from the .env file into process.env
 const dotenv = require("dotenv");
-
-// Import our custom function that connects to MongoDB (see config/db.js)
+const cors = require("cors");
 const connectDB = require("./config/db");
 
-// Load environment variables from .env into process.env (must run before we use PORT, MONGO_URI, etc.)
+const coinRoutes = require("./routes/coinRoutes");
+const searchRoutes = require("./routes/searchRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const statsRoutes = require("./routes/statsRoutes");
+const authRoutes = require("./routes/authRoutes");
+const jwtRoutes = require("./routes/jwtRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const protectedRoutes = require("./routes/protectedRoutes");
+const middlewareRoutes = require("./routes/middlewareRoutes");
+
 dotenv.config();
-
-// Create an Express application instance — "app" is our web server
-const app = express();
-
-// ----- Middleware (code that runs on EVERY request before your route handler) -----
-
-// Enable CORS so browsers can request this API from another origin (e.g. React on port 3000)
-app.use(cors());
-
-// Parse incoming JSON request bodies and put the data on req.body
-app.use(express.json());
-
-// ----- Database Connection -----
-
-// Call connectDB to connect to MongoDB using MONGO_URI from .env
 connectDB();
 
-// ----- Routes -----
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Simple test route: when someone visits GET http://localhost:5000/ they get a JSON message
+app.use(cors());
+app.use(express.json({ limit: "10mb" }));
+
 app.get("/", (req, res) => {
-  // res.json() sends a JSON response back to the client (browser or Postman)
   res.json({ message: "Server is running!" });
 });
 
-// ----- Start Server -----
+app.use("/coins", coinRoutes);
+app.use("/search", searchRoutes);
+app.use("/analytics", analyticsRoutes);
+app.use("/stats", statsRoutes);
+app.use("/auth", authRoutes);
+app.use("/jwt", jwtRoutes);
+app.use("/admin", adminRoutes);
+app.use("/protected", protectedRoutes);
+app.use("/middleware", middlewareRoutes);
 
-// Read PORT from .env; if missing, use 5000 as the default port number
-const PORT = process.env.PORT || 5000;
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`
+  });
+});
 
-// Tell Express to listen for incoming HTTP requests on this port
+app.use((err, req, res, next) => {
+  res.status(500).json({
+    success: false,
+    message: err.message || "Internal server error"
+  });
+});
+
 app.listen(PORT, () => {
-  // This runs once when the server has started successfully
   console.log(`Server is running on port ${PORT}`);
 });
