@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import coinService from '../services/coinService';
-import { Sparkles, Loader2, AlertTriangle, TrendingUp, DollarSign, Award, Percent, Calendar } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle, TrendingUp, DollarSign, Award, Percent, Calendar, LineChart as ChartIcon } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function Predictions() {
   const [recommendations, setRecommendations] = useState([]);
@@ -120,10 +121,33 @@ export default function Predictions() {
 
       const coinInfo = allCoins.find(c => c.coin_id === selectedCoinId);
 
+      // Process combined chart data for historical -> forecast transition
+      const chartDataPoints = [];
+      const slicedHistory = history.slice(-30);
+      slicedHistory.forEach((h) => {
+        chartDataPoints.push({
+          formattedDate: new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          historical: h.price,
+        });
+      });
+
+      const lastHistoryPoint = chartDataPoints[chartDataPoints.length - 1];
+      if (lastHistoryPoint) {
+        lastHistoryPoint.forecast = lastHistoryPoint.historical;
+      }
+
+      forecast.forEach((f) => {
+        chartDataPoints.push({
+          formattedDate: f.formattedDate,
+          forecast: f.price,
+        });
+      });
+
       setPredictionResult({
         coin: coinInfo,
         forecast,
         history,
+        chartData: chartDataPoints,
         lastPrice
       });
       setPredicted(true);
@@ -137,6 +161,33 @@ export default function Predictions() {
 
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  };
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="glass-panel" style={{ padding: '12px 16px', border: '1px solid var(--border-hover)', fontSize: '13px', background: 'rgba(15, 17, 26, 0.95)' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>{data.formattedDate}</p>
+          {data.historical !== undefined && (
+            <p style={{ color: '#fff', fontWeight: 700 }}>
+              Price: <span style={{ color: 'var(--primary-hover)' }}>{formatCurrency(data.historical)}</span>
+            </p>
+          )}
+          {data.forecast !== undefined && (
+            <p style={{ color: '#fff', fontWeight: 700 }}>
+              Forecast: <span style={{ color: 'var(--warning)' }}>{formatCurrency(data.forecast)}</span>
+            </p>
+          )}
+          {data.forecast !== undefined && data.historical === undefined && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '2px' }}>
+              Projected Drift
+            </p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -273,46 +324,93 @@ export default function Predictions() {
           )}
 
           {!predicting && predicted && predictionResult && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>
-                  7-Day Monte Carlo Projections for {predictionResult.coin?.coin_name}
+                  7-Day Projections for {predictionResult.coin?.coin_name}
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Expected projections using historical price standard deviation.
+                  Monte Carlo random walk simulator based on 30-day volatility.
                 </p>
               </div>
 
+              {/* Transition Chart */}
+              <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ChartIcon size={14} color="var(--primary-hover)" />
+                  <span>Price Forecast Visualizer</span>
+                </h4>
+                <div style={{ width: '100%', height: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={predictionResult.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.03)" vertical={false} />
+                      <XAxis dataKey="formattedDate" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+                      <YAxis 
+                        stroke="var(--text-muted)" 
+                        fontSize={10} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        tickFormatter={(val) => `$${val.toLocaleString()}`}
+                        dx={-10}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="historical" 
+                        stroke="var(--primary)" 
+                        strokeWidth={2} 
+                        dot={false} 
+                        name="Historical" 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="forecast" 
+                        stroke="var(--warning)" 
+                        strokeWidth={2} 
+                        strokeDasharray="4 4" 
+                        dot={{ r: 3, fill: 'var(--warning)', strokeWidth: 0 }} 
+                        name="Projected" 
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
               {/* Table of 7 day forecast */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {predictionResult.forecast.map((f) => {
-                  const isUp = f.changePercent >= 0;
-                  return (
-                    <div 
-                      key={f.day}
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        padding: '10px 14px', 
-                        background: 'rgba(255,255,255,0.02)', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: 'var(--radius-sm)' 
-                      }}
-                    >
-                      <div style={{ fontSize: '13px', color: '#fff', display: 'flex', gap: '10px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Day {f.day}</span>
-                        <span>{f.formattedDate}</span>
+              <div>
+                <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  Projected Daily Breakdown
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                  {predictionResult.forecast.map((f) => {
+                    const isUp = f.changePercent >= 0;
+                    return (
+                      <div 
+                        key={f.day}
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          padding: '10px 14px', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: 'var(--radius-sm)' 
+                        }}
+                      >
+                        <div style={{ fontSize: '12px', color: '#fff', display: 'flex', gap: '8px' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Day {f.day}</span>
+                          <span>{f.formattedDate}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
+                          <strong style={{ color: '#fff' }}>{formatCurrency(f.price)}</strong>
+                          <span className={`badge ${isUp ? 'badge-up' : 'badge-down'}`} style={{ padding: '2px 6px', fontSize: '10px' }}>
+                            {isUp ? '+' : ''}{f.changePercent.toFixed(2)}%
+                          </span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px' }}>
-                        <strong style={{ color: '#fff' }}>{formatCurrency(f.price)}</strong>
-                        <span className={`badge ${isUp ? 'badge-up' : 'badge-down'}`}>
-                          {isUp ? '+' : ''}{f.changePercent.toFixed(2)}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
