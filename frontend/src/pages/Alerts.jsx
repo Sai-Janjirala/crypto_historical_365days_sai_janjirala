@@ -11,6 +11,40 @@ export default function Alerts() {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [minSeverity, setMinSeverity] = useState('all'); // 'all', 'medium', 'high'
 
+  const playAudioAlert = (frequency = 440, type = 'sine', duration = 0.15) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+      
+      gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); // Low volume
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+      console.warn('Web Audio API is blocked or not supported:', e);
+    }
+  };
+
+  const toggleAudio = () => {
+    const nextState = !audioEnabled;
+    setAudioEnabled(nextState);
+    if (nextState) {
+      // Play a short double beep confirming audio is enabled
+      playAudioAlert(523.25, 'sine', 0.1); // C5
+      setTimeout(() => {
+        playAudioAlert(659.25, 'sine', 0.12); // E5
+      }, 100);
+    }
+  };
+
   // Alerts data state
   const [volatilityAlerts, setVolatilityAlerts] = useState([]);
   const [marketDropAlerts, setMarketDropAlerts] = useState([]);
@@ -80,7 +114,7 @@ export default function Alerts() {
         {/* Quick Audio & Volume Control panel */}
         <div className="glass-panel" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
           <button
-            onClick={() => setAudioEnabled(!audioEnabled)}
+            onClick={toggleAudio}
             style={{
               background: 'none',
               border: 'none',
@@ -93,9 +127,23 @@ export default function Alerts() {
               fontWeight: 600
             }}
           >
-            {audioEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {audioEnabled ? <Volume2 size={16} color="var(--primary)" /> : <VolumeX size={16} />}
             <span>{audioEnabled ? 'Audio Alerts On' : 'Audio Muted'}</span>
           </button>
+          
+          {audioEnabled && (
+            <button
+              onClick={() => {
+                // High alert alarm sound check
+                playAudioAlert(880, 'triangle', 0.15);
+                setTimeout(() => playAudioAlert(880, 'triangle', 0.15), 180);
+              }}
+              className="btn btn-secondary"
+              style={{ padding: '4px 8px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', height: '26px' }}
+            >
+              Test Tone
+            </button>
+          )}
         </div>
       </div>
 
