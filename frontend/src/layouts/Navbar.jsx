@@ -28,14 +28,16 @@ export default function Navbar({ onMenuToggle, user, onLogout }) {
 
       <div className="navbar-right">
         {user ? (
-          <div className="user-profile-widget">
-            <div className="user-avatar">
-              {user.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
-            </div>
-            <span>{user.username}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Link to="/profile" className="user-profile-widget" style={{ textDecoration: 'none' }}>
+              <div className="user-avatar">
+                {user.name ? user.name.substring(0, 2).toUpperCase() : 'US'}
+              </div>
+              <span>{user.name}</span>
+            </Link>
             <button 
               onClick={onLogout} 
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', marginLeft: '8px' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', marginLeft: '4px' }}
               title="Logout"
             >
               <LogOut size={16} />

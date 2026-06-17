@@ -8,6 +8,8 @@ import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
+import ProtectedRoute from './components/ProtectedRoute';
+import Profile from './pages/Profile';
 
 // Temporary page placeholders (will be built out in future PRs)
 function HomePlaceholder() {
@@ -62,7 +64,16 @@ export default function App() {
             <Route path="stats" element={<PagePlaceholder title="Global Statistics" />} />
             <Route path="analytics" element={<PagePlaceholder title="Analytics Hub" />} />
             <Route path="portfolio" element={<PagePlaceholder title="Portfolio Simulator" />} />
-            <Route path="admin" element={<PagePlaceholder title="Admin Panel" />} />
+            <Route path="admin" element={
+              <ProtectedRoute adminOnly>
+                <PagePlaceholder title="Admin Panel" />
+              </ProtectedRoute>
+            } />
+            <Route path="profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
             <Route path="settings" element={<PagePlaceholder title="Settings" />} />
             <Route path="*" element={<PagePlaceholder title="404 Not Found" />} />
           </Route>
