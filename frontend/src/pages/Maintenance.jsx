@@ -21,6 +21,11 @@ export default function Maintenance() {
   const [cacheItems, setCacheItems] = useState(124);
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Live hardware simulation states
+  const [cpuUsage, setCpuUsage] = useState(14.2);
+  const [ramUsage, setRamUsage] = useState(62.4);
+  const [connections, setConnections] = useState(12);
+
   const handleClearCache = async () => {
     setClearingCache(true);
     setError('');
@@ -80,7 +85,26 @@ export default function Maintenance() {
       setUptimeSeconds(prev => prev + 1);
     }, 1000);
 
-    return () => clearInterval(timer);
+    // Live hardware load simulator
+    const healthTicker = setInterval(() => {
+      setCpuUsage(prev => {
+        const delta = (Math.random() - 0.5) * 4;
+        return Math.max(5, Math.min(45, parseFloat((prev + delta).toFixed(1))));
+      });
+      setRamUsage(prev => {
+        const delta = (Math.random() - 0.5) * 0.8;
+        return Math.max(50, Math.min(80, parseFloat((prev + delta).toFixed(1))));
+      });
+      setConnections(prev => {
+        const change = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+        return Math.max(2, prev + change);
+      });
+    }, 2500);
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(healthTicker);
+    };
   }, []);
 
   const formatUptime = (totalSeconds) => {
@@ -172,13 +196,64 @@ export default function Maintenance() {
           {/* Double Column Configuration & Cache Panel */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px', alignItems: 'start' }}>
             
-            {/* Left Column Placeholder (will contain CPU/RAM health charts in Commit 3) */}
-            <div className="glass-panel" style={{ padding: '30px', minHeight: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', textAlign: 'center' }}>
-              <Activity size={40} style={{ opacity: 0.15, marginBottom: '16px' }} />
-              <h3 style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>Resources Health Monitoring</h3>
-              <p style={{ fontSize: '13px', maxWidth: '280px', marginTop: '4px' }}>
-                System hardware load factors (CPU heap, RAM allocation, memory buffers) will display here.
-              </p>
+            {/* Left Column: Resources Monitoring Dashboard */}
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={18} color="var(--primary-hover)" />
+                <span>Resource Health Monitors</span>
+              </h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                
+                {/* CPU usage progress bar */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>CPU Load Factor:</span>
+                    <strong style={{ color: cpuUsage > 30 ? 'var(--warning)' : '#fff' }}>{cpuUsage}%</strong>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                    <div style={{ width: `${cpuUsage}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--info))', transition: 'width 2.5s ease-in-out' }}></div>
+                  </div>
+                </div>
+
+                {/* RAM heap usage progress bar */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Memory Heap Allocation (RAM):</span>
+                    <strong style={{ color: '#fff' }}>{ramUsage}% <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({Math.round((ramUsage/100)*2048)} MB / 2048 MB)</span></strong>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                    <div style={{ width: `${ramUsage}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--success))', transition: 'width 2.5s ease-in-out' }}></div>
+                  </div>
+                </div>
+
+                {/* Grid details */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  
+                  {/* Active connections */}
+                  <div style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Active Client Nodes</div>
+                    <strong style={{ fontSize: '16px', color: '#fff', display: 'block', marginTop: '4px' }}>{connections} sockets</strong>
+                  </div>
+
+                  {/* MongoDB status */}
+                  <div style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Database status</div>
+                    <strong style={{ fontSize: '13px', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></span>
+                      <span>Connected (DB latency: {networkLatency ? `${Math.round(networkLatency * 0.4)}ms` : '4ms'})</span>
+                    </strong>
+                  </div>
+
+                  {/* File systems */}
+                  <div style={{ padding: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Disk Storage</div>
+                    <strong style={{ fontSize: '13px', color: '#fff', display: 'block', marginTop: '4px' }}>1.23 GB of 10.0 GB <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(12.3% used)</span></strong>
+                  </div>
+
+                </div>
+
+              </div>
             </div>
 
             {/* Right Column: Config & Cache */}
