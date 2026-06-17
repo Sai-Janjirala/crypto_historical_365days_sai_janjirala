@@ -1,30 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Compass, X, Activity } from 'lucide-react';
-import coinService from '../services/coinService';
+import { Search, Compass, X, Command } from 'lucide-react';
+
+const shortcuts = [
+  { label: 'Go to Dashboard', path: '/' },
+  { label: 'Go to Coins Directory', path: '/coins' },
+  { label: 'Go to Compare Coins', path: '/compare' },
+  { label: 'Go to Market Heatmap', path: '/heatmap' },
+  { label: 'Go to Global Statistics', path: '/stats' },
+  { label: 'Go to Performance Leaderboards', path: '/leaderboards' },
+  { label: 'Go to Analytics Hub', path: '/analytics' },
+  { label: 'Go to Portfolio Simulator', path: '/portfolio' },
+  { label: 'Go to Predictions & Recommendations', path: '/predictions' },
+  { label: 'Go to Risk Alerts', path: '/alerts' },
+  { label: 'Go to Coin Reports', path: '/reports' },
+  { label: 'Go to System Health & Maintenance', path: '/admin/maintenance' },
+  { label: 'Go to Admin Control Center', path: '/admin' },
+  { label: 'Go to Settings', path: '/settings' }
+];
 
 export default function CommandMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  // Close/Open keyboard triggers
+  // Filter shortcuts
+  const filteredShortcuts = shortcuts.filter(s =>
+    s.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalItems = filteredShortcuts.length;
+
+  const handleSelect = (path) => {
+    navigate(path);
+    setIsOpen(false);
+  };
+
+  // Close/Open keyboard triggers and index navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
+      if (!isOpen) return;
+
       if (e.key === 'Escape') {
         setIsOpen(false);
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (totalItems > 0 ? (prev + 1) % totalItems : 0));
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (totalItems > 0 ? (prev - 1 + totalItems) % totalItems : 0));
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (totalItems > 0 && filteredShortcuts[highlightedIndex]) {
+          handleSelect(filteredShortcuts[highlightedIndex].path);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isOpen, totalItems, highlightedIndex, filteredShortcuts]);
 
-  // Focus input on open
+  // Focus input on open & reset
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => {
@@ -32,8 +77,13 @@ export default function CommandMenu() {
       }, 50);
     } else {
       setSearchQuery('');
+      setHighlightedIndex(0);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [searchQuery]);
 
   if (!isOpen) return null;
 
@@ -102,9 +152,41 @@ export default function CommandMenu() {
           </button>
         </div>
 
-        {/* Command listings placeholder */}
-        <div style={{ padding: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Shortcuts and listings placeholder...
+        {/* Shortcuts list container */}
+        <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '8px' }} className="custom-scroll">
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', padding: '6px 10px', fontWeight: 600 }}>
+            Global Shortcuts
+          </div>
+          {filteredShortcuts.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              No commands matched your query.
+            </div>
+          ) : (
+            filteredShortcuts.map((item, index) => {
+              const isHighlighted = highlightedIndex === index;
+              return (
+                <div
+                  key={item.path}
+                  onClick={() => handleSelect(item.path)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    background: isHighlighted ? 'var(--primary)' : 'none',
+                    color: isHighlighted ? '#fff' : 'var(--text-secondary)',
+                    transition: 'background 0.15s ease'
+                  }}
+                >
+                  <Command size={14} color={isHighlighted ? '#fff' : 'var(--text-muted)'} />
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Modal Footer */}
